@@ -1,0 +1,74 @@
+﻿# encoding: utf-8
+# Release 19.2
+import os
+import sys
+
+
+CWD = os.path.dirname(os.path.abspath(__file__))
+
+SetScriptVersion(Version="19.2.120")
+
+print('Start Workbench')
+print('Restore project archive')
+
+Unarchive(
+    ArchivePath="ini.wbpz",
+    ProjectPath="test.wbpj",
+    Overwrite=True)
+
+print('Unzipping is over')
+
+print('Open Workbench project')
+Open(FilePath="test.wbpj")
+
+dp_1 = Parameters.GetDesignPoint(Name="0")
+pt0 = Parameters.GetParameter("P1")
+p0 = Parameters.GetParameter("P2")
+mass_flow = Parameters.GetParameter("P3")
+
+
+def get_pressure(input_file_path):
+    if os.path.exists(input_file_path):
+        print('Open input file')
+        with open(input_file_path) as input_file:
+            for line in input_file:
+                yield line
+    else:
+        print('ERROR: {} does not exist'.format(input_file_path))
+        sys.exit(0)
+
+
+def insert_parameters(output_file_path):
+    for line in get_pressure(input_file_path):
+        pressure_in, pressure_out = line.split()[0], line.split()[1]
+
+        print('Insert pressure values')
+        print('Inlet pressure: {} [atm], Outlet pressure: {} [atm]'.format(pressure_in, pressure_out))
+        dp_1.SetParameterExpression(Parameter=pt0, Expression="{} [atm]".format(pressure_in))
+        dp_1.SetParameterExpression(Parameter=p0, Expression="{} [atm]".format(pressure_out))
+
+        print('Updating parameters')
+        Update()
+
+        if os.path.exists(output_file_path):
+            with open(output_file_path, 'aw') as output_file:
+                print('Writing mass flow')
+                print('Mass flow: {}'.format(mass_flow.Value))
+                output_file.write(str(mass_flow.Value).split()[0])
+                output_file.write('\n')
+        else:
+            print('ERROR: {} does not exist'.format(output_file_path))
+            sys.exit(0)
+
+
+if __name__ == '__main__':
+    input_file_path = os.path.join(CWD, 'input.txt')
+    output_file_path = os.path.join(CWD, 'output.txt')
+    get_pressure(input_file_path)
+    insert_parameters(output_file_path)
+    Save(Overwrite=True)
+    print('Calculation complete!')
+
+
+
+
